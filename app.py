@@ -156,6 +156,38 @@ def display_feedback(feedback: dict, training_type: str):
             assertiveness = feedback.get("assertiveness", 0)
             st.write(f"言い切り度: {'💪' * assertiveness} ({assertiveness}/5)")
 
+    elif training_type == "prep":
+        st.markdown("### 📝 PREP法構造分析")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**4要素の有無:**")
+            has_point = feedback.get("has_point", False)
+            has_reason = feedback.get("has_reason", False)
+            has_example = feedback.get("has_example", False)
+            has_repoint = feedback.get("has_repoint", False)
+            st.write(f"P (結論): {'✅' if has_point else '❌'}")
+            st.write(f"R (理由): {'✅' if has_reason else '❌'}")
+            st.write(f"E (具体例): {'✅' if has_example else '❌'}")
+            st.write(f"P (再結論): {'✅' if has_repoint else '❌'}")
+        with col2:
+            correct_order = feedback.get("correct_order", False)
+            structure_score = feedback.get("structure_score", 0)
+            st.write(f"**順序:** {'✅ 正しい' if correct_order else '⚠️ 改善が必要'}")
+            st.write(f"**構造スコア:** {structure_score}/100")
+
+    elif training_type == "sentence_ending":
+        st.markdown("### 📝 言い切り分析")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            sentence_count = feedback.get("sentence_count", 0)
+            st.write(f"文の数: {sentence_count}")
+        with col2:
+            clear_endings = feedback.get("clear_endings", False)
+            st.write(f"明確な言い切り: {'✅' if clear_endings else '❌'}")
+        with col3:
+            excessive_conjunctions = feedback.get("excessive_conjunctions", False)
+            st.write(f"接続詞過剰: {'⚠️ あり' if excessive_conjunctions else '✅ なし'}")
+
 
 def parrot_training():
     """オウム返し訓練（F-202）"""
@@ -520,6 +552,196 @@ def conclusion_first_training():
         st.warning("「新しい質問を生成」ボタンを押して、トレーニングを開始してください。")
 
 
+def prep_training():
+    """PREP法実践訓練（F-101）"""
+    st.header("📋 PREP法実践訓練")
+
+    st.markdown("""
+    ### 訓練の目的
+    PREP法（Point→Reason→Example→Point）の構造で、**約30秒のパッケージ**で話す練習です。
+    結論→理由→具体例→再結論の順序が重要です。
+
+    ### やり方
+    1. 下の「新しいテーマを生成」ボタンを押してテーマを取得
+    2. テーマについて、PREP法で話す内容を考える
+    3. 録音ボタンを押して、**P→R→E→Pの順序で話す**
+    4. AIがあなたの回答を分析してフィードバックします
+
+    ### PREP法とは
+    - **P (Point)**: 結論・主張を述べる
+    - **R (Reason)**: その理由を説明する
+    - **E (Example)**: 具体例を挙げる
+    - **P (Point)**: 再度結論を述べる
+
+    ### ポイント
+    - 最初に結論を明確に述べる
+    - 理由は「なぜなら」「その理由は」などで始める
+    - 具体例は「例えば」「実際に」などで始める
+    - 最後にもう一度結論を強調する
+    """)
+
+    # テーマ生成ボタン
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🎲 新しいテーマを生成", use_container_width=True):
+            with st.spinner("テーマを生成中..."):
+                try:
+                    st.session_state.current_question = st.session_state.ai_client.generate_question("prep")
+                    st.session_state.transcribed_text = None
+                    st.session_state.feedback = None
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"テーマ生成エラー: {str(e)}")
+
+    # テーマ表示
+    if st.session_state.current_question:
+        st.info(f"**テーマ:** {st.session_state.current_question}")
+
+        # 音声録音
+        st.markdown("### 🎤 音声を録音")
+        st.write("マイクボタンをクリックして録音を開始してください。もう一度クリックすると録音が停止します。")
+
+        audio_bytes = audio_recorder(
+            text="録音",
+            recording_color="#e74c3c",
+            neutral_color="#16a085",
+            icon_name="microphone",
+            icon_size="3x"
+        )
+
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/wav")
+
+            # 音声認識と分析ボタン
+            if st.button("📊 音声を分析", use_container_width=True):
+                with st.spinner("音声を認識中..."):
+                    try:
+                        # 音声ファイルを保存
+                        audio_path = save_audio_file(audio_bytes)
+
+                        # 音声をテキストに変換
+                        transcribed_text = st.session_state.ai_client.transcribe_audio(audio_path)
+                        st.session_state.transcribed_text = transcribed_text
+
+                        # 認識結果を表示
+                        st.success("✅ 音声認識完了")
+                        st.markdown("### 📝 認識されたテキスト")
+                        st.write(transcribed_text)
+
+                        # フィードバック生成
+                        with st.spinner("フィードバックを生成中..."):
+                            feedback = st.session_state.ai_client.analyze_prep_method(
+                                st.session_state.current_question,
+                                transcribed_text
+                            )
+                            st.session_state.feedback = feedback
+
+                            # フィードバック表示
+                            display_feedback(feedback, "prep")
+
+                        # 音声ファイルを削除
+                        os.remove(audio_path)
+
+                    except Exception as e:
+                        st.error(f"エラーが発生しました: {str(e)}")
+
+    else:
+        st.warning("「新しいテーマを生成」ボタンを押して、トレーニングを開始してください。")
+
+
+def sentence_ending_training():
+    """言い切り（句点）意識訓練（F-103）"""
+    st.header("✂️ 言い切り（句点）意識訓練")
+
+    st.markdown("""
+    ### 訓練の目的
+    文章を**「丸（句点）」で言い切る**ことができているか、接続詞で繋げていないかを判定する訓練です。
+    一文を短く区切り、明確に言い切ることが重要です。
+
+    ### やり方
+    1. 下の「新しいテーマを生成」ボタンを押してテーマを取得
+    2. テーマについて考える
+    3. 録音ボタンを押して、**短い文で区切りながら話す**
+    4. AIがあなたの回答を分析してフィードバックします
+
+    ### ポイント
+    - 一文を短くする（15文字程度を目安）
+    - 「〜です。」「〜ます。」で明確に言い切る
+    - 「〜で、〜で、」のように接続詞で繋げない
+    - 各文が独立して意味を持つようにする
+    - 例: ❌「私の趣味は読書で、特にミステリー小説が好きで、週に2冊くらい読んでいて...」
+    - 例: ✅「私の趣味は読書です。特にミステリー小説が好きです。週に2冊くらい読みます。」
+    """)
+
+    # テーマ生成ボタン
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🎲 新しいテーマを生成", use_container_width=True):
+            with st.spinner("テーマを生成中..."):
+                try:
+                    st.session_state.current_question = st.session_state.ai_client.generate_question("sentence_ending")
+                    st.session_state.transcribed_text = None
+                    st.session_state.feedback = None
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"テーマ生成エラー: {str(e)}")
+
+    # テーマ表示
+    if st.session_state.current_question:
+        st.info(f"**テーマ:** {st.session_state.current_question}")
+
+        # 音声録音
+        st.markdown("### 🎤 音声を録音")
+        st.write("マイクボタンをクリックして録音を開始してください。もう一度クリックすると録音が停止します。")
+
+        audio_bytes = audio_recorder(
+            text="録音",
+            recording_color="#e74c3c",
+            neutral_color="#e67e22",
+            icon_name="microphone",
+            icon_size="3x"
+        )
+
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/wav")
+
+            # 音声認識と分析ボタン
+            if st.button("📊 音声を分析", use_container_width=True):
+                with st.spinner("音声を認識中..."):
+                    try:
+                        # 音声ファイルを保存
+                        audio_path = save_audio_file(audio_bytes)
+
+                        # 音声をテキストに変換
+                        transcribed_text = st.session_state.ai_client.transcribe_audio(audio_path)
+                        st.session_state.transcribed_text = transcribed_text
+
+                        # 認識結果を表示
+                        st.success("✅ 音声認識完了")
+                        st.markdown("### 📝 認識されたテキスト")
+                        st.write(transcribed_text)
+
+                        # フィードバック生成
+                        with st.spinner("フィードバックを生成中..."):
+                            feedback = st.session_state.ai_client.analyze_sentence_ending(
+                                st.session_state.current_question,
+                                transcribed_text
+                            )
+                            st.session_state.feedback = feedback
+
+                            # フィードバック表示
+                            display_feedback(feedback, "sentence_ending")
+
+                        # 音声ファイルを削除
+                        os.remove(audio_path)
+
+                    except Exception as e:
+                        st.error(f"エラーが発生しました: {str(e)}")
+
+    else:
+        st.warning("「新しいテーマを生成」ボタンを押して、トレーニングを開始してください。")
+
+
 def main():
     """メイン関数"""
     # タイトル
@@ -530,9 +752,18 @@ def main():
     with st.sidebar:
         st.header("📋 メニュー")
 
+        st.markdown("**基礎構造トレーニング**")
         training_mode = st.radio(
             "トレーニングを選択",
-            ["オウム返し訓練", "実況トレーニング", "自問自答ダイアログ", "結論ファースト訓練"],
+            [
+                "PREP法実践訓練",
+                "結論ファースト訓練",
+                "言い切り意識訓練",
+                "---",
+                "オウム返し訓練",
+                "実況トレーニング",
+                "自問自答ダイアログ"
+            ],
             help="練習したいトレーニングを選んでください"
         )
 
@@ -543,11 +774,17 @@ def main():
 
         このアプリは、**話し方の課題（言葉が出てこない）** を改善するためのトレーニングツールです。
 
-        **主な機能:**
+        **基礎構造トレーニング:**
+        - 📋 PREP法実践訓練
+        - 💡 結論ファースト訓練
+        - ✂️ 言い切り意識訓練
+
+        **タイプA強化モジュール:**
         - 🦜 オウム返し訓練
         - 📢 実況トレーニング
         - 🤔 自問自答ダイアログ
-        - 💡 結論ファースト訓練
+
+        **共通機能:**
         - 🎤 音声認識
         - 📊 AIフィードバック
 
@@ -559,14 +796,20 @@ def main():
         st.caption("Powered by OpenAI API")
 
     # トレーニングモードに応じた表示
-    if training_mode == "オウム返し訓練":
+    if training_mode == "---":
+        st.info("👆 サイドバーからトレーニングを選択してください")
+    elif training_mode == "PREP法実践訓練":
+        prep_training()
+    elif training_mode == "結論ファースト訓練":
+        conclusion_first_training()
+    elif training_mode == "言い切り意識訓練":
+        sentence_ending_training()
+    elif training_mode == "オウム返し訓練":
         parrot_training()
     elif training_mode == "実況トレーニング":
         commentary_training()
-    elif training_mode == "自問自答ダイアログ":
+    else:  # 自問自答ダイアログ
         self_questioning_training()
-    else:
-        conclusion_first_training()
 
 
 if __name__ == "__main__":

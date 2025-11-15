@@ -288,12 +288,140 @@ class SpeechTrainingAI:
         except Exception as e:
             raise Exception(f"分析エラー: {str(e)}")
 
+    def analyze_prep_method(self, topic: str, user_response: str) -> dict:
+        """
+        PREP法実践の分析（F-101）
+        結論→理由→具体例→再結論の順序で話せているかを評価
+
+        Args:
+            topic: 提示されたテーマ
+            user_response: ユーザーの回答
+
+        Returns:
+            フィードバックの辞書
+        """
+        prompt = f"""
+あなたは話し方トレーニングのコーチです。
+以下の「PREP法実践訓練」の評価を行ってください。
+
+【訓練の目的】
+PREP法（Point→Reason→Example→Point）の構造で、約30秒のパッケージで話す練習です。
+結論→理由→具体例→再結論の順序が重要です。
+
+【提示されたテーマ】
+{topic}
+
+【ユーザーの発話】
+{user_response}
+
+【評価項目】
+1. 構造: PREP法の4要素（結論、理由、具体例、再結論）が含まれているか
+2. 順序: 正しい順序で述べられているか
+3. 明確性: 各要素が明確に区別できるか
+4. 簡潔性: 約30秒程度にまとまっているか
+
+以下のJSON形式で評価してください：
+{{
+    "has_point": true/false（結論の有無）,
+    "has_reason": true/false（理由の有無）,
+    "has_example": true/false（具体例の有無）,
+    "has_repoint": true/false（再結論の有無）,
+    "correct_order": true/false（順序が正しいか）,
+    "structure_score": 0-100,
+    "score": 0-100,
+    "feedback": "具体的なフィードバック（日本語、200文字以内）",
+    "good_points": ["良かった点1", "良かった点2"],
+    "improvements": ["改善点1", "改善点2"]
+}}
+"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "あなたは話し方トレーニングの専門コーチです。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+
+            import json
+            result = json.loads(response.choices[0].message.content)
+            return result
+
+        except Exception as e:
+            raise Exception(f"分析エラー: {str(e)}")
+
+    def analyze_sentence_ending(self, topic: str, user_response: str) -> dict:
+        """
+        言い切り（句点）意識訓練の分析（F-103）
+        文章を「丸（句点）」で言い切れているか、接続詞で繋げていないかを判定
+
+        Args:
+            topic: 提示されたテーマ
+            user_response: ユーザーの発話
+
+        Returns:
+            フィードバックの辞書
+        """
+        prompt = f"""
+あなたは話し方トレーニングのコーチです。
+以下の「言い切り（句点）意識訓練」の評価を行ってください。
+
+【訓練の目的】
+文章を「丸（句点）」で言い切ることができているか、接続詞で繋げていないかを判定する訓練です。
+一文を短く区切り、明確に言い切ることが重要です。
+
+【提示されたテーマ】
+{topic}
+
+【ユーザーの発話】
+{user_response}
+
+【評価項目】
+1. 句点の使用: 文章が句点で適切に区切られているか
+2. 言い切り: 各文が断定的に言い切られているか
+3. 接続詞の過剰使用: 「〜で、〜で、」のように接続詞で繋げすぎていないか
+4. 文の独立性: 各文が独立して意味を持っているか
+
+以下のJSON形式で評価してください：
+{{
+    "sentence_count": 文の数,
+    "avg_sentence_length": 平均文字数,
+    "excessive_conjunctions": true/false（接続詞の過剰使用）,
+    "clear_endings": true/false（明確な言い切り）,
+    "score": 0-100,
+    "feedback": "具体的なフィードバック（日本語、200文字以内）",
+    "good_points": ["良かった点1", "良かった点2"],
+    "improvements": ["改善点1", "改善点2"]
+}}
+"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "あなたは話し方トレーニングの専門コーチです。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+
+            import json
+            result = json.loads(response.choices[0].message.content)
+            return result
+
+        except Exception as e:
+            raise Exception(f"分析エラー: {str(e)}")
+
     def generate_question(self, training_type: str) -> str:
         """
         トレーニング用の質問を生成
 
         Args:
-            training_type: トレーニングタイプ（"parrot", "commentary", "self_questioning", "conclusion_first"）
+            training_type: トレーニングタイプ（"parrot", "commentary", "self_questioning", "conclusion_first", "prep", "sentence_ending"）
 
         Returns:
             生成された質問またはトピック
@@ -334,7 +462,7 @@ class SpeechTrainingAI:
 
 「〜をする」という形式で、行動のみを出力してください。
 """
-        else:  # conclusion_first
+        elif training_type == "conclusion_first":
             prompt = """
 話し方トレーニングの「結論ファースト訓練」用の質問を1つ生成してください。
 意見や考えを求める質問にしてください。
@@ -345,6 +473,30 @@ class SpeechTrainingAI:
 - この会議で最も重要な論点は何だと思いますか？
 
 質問文のみを出力してください。
+"""
+        elif training_type == "prep":
+            prompt = """
+話し方トレーニングの「PREP法実践訓練」用のテーマを1つ生成してください。
+意見を述べやすいテーマにしてください。
+
+例：
+- リモートワークのメリット
+- 健康的な生活習慣
+- 効果的な時間管理
+
+テーマのみを出力してください。
+"""
+        else:  # sentence_ending
+            prompt = """
+話し方トレーニングの「言い切り（句点）意識訓練」用のテーマを1つ生成してください。
+説明しやすいテーマにしてください。
+
+例：
+- あなたの趣味について
+- 好きな食べ物について
+- 最近の出来事について
+
+テーマのみを出力してください。
 """
 
         try:
