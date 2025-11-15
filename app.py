@@ -133,6 +133,29 @@ def display_feedback(feedback: dict, training_type: str):
             avg_length = feedback.get("avg_sentence_length", 0)
             st.write(f"平均文字数: {avg_length:.1f}")
 
+    elif training_type == "self_questioning":
+        st.markdown("### 📝 自問自答分析")
+        col1, col2 = st.columns(2)
+        with col1:
+            depth_level = feedback.get("depth_level", 0)
+            st.write(f"深掘り度: {'⭐' * depth_level} ({depth_level}/5)")
+        with col2:
+            is_specific = feedback.get("is_specific", False)
+            st.write(f"具体性: {'✅ 具体的' if is_specific else '⚠️ 抽象的'}")
+
+    elif training_type == "conclusion_first":
+        st.markdown("### 📝 結論ファースト分析")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            has_conclusion_first = feedback.get("has_conclusion_first", False)
+            st.write(f"結論ファースト: {'✅' if has_conclusion_first else '❌'}")
+        with col2:
+            has_punch_word = feedback.get("has_punch_word", False)
+            st.write(f"パンチワード: {'✅' if has_punch_word else '❌'}")
+        with col3:
+            assertiveness = feedback.get("assertiveness", 0)
+            st.write(f"言い切り度: {'💪' * assertiveness} ({assertiveness}/5)")
+
 
 def parrot_training():
     """オウム返し訓練（F-202）"""
@@ -314,6 +337,189 @@ def commentary_training():
         st.warning("「新しいトピックを生成」ボタンを押して、トレーニングを開始してください。")
 
 
+def self_questioning_training():
+    """自問自答ダイアログ（F-201）"""
+    st.header("🤔 自問自答ダイアログ")
+
+    st.markdown("""
+    ### 訓練の目的
+    提示された日常の行動に対し、**「なぜ？」を問いかけ、深掘りした理由を言語化**させる練習です。
+    思考の引き出しを増やすことが目的です。
+
+    ### やり方
+    1. 下の「新しい行動を生成」ボタンを押して日常行動を取得
+    2. その行動について考える
+    3. 録音ボタンを押して、**「なぜそれをするのか」を深掘りして説明**する
+    4. AIがあなたの回答を分析してフィードバックします
+
+    ### ポイント
+    - 表面的な理由だけでなく、深い理由まで掘り下げる
+    - 「なぜなら〜」「その理由は〜」と複数の視点で考える
+    - 抽象的ではなく、具体的に説明する
+    - 自分の考えや感情を言語化する
+    """)
+
+    # 行動生成ボタン
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🎲 新しい行動を生成", use_container_width=True):
+            with st.spinner("行動を生成中..."):
+                try:
+                    st.session_state.current_question = st.session_state.ai_client.generate_question("self_questioning")
+                    st.session_state.transcribed_text = None
+                    st.session_state.feedback = None
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"行動生成エラー: {str(e)}")
+
+    # 行動表示
+    if st.session_state.current_question:
+        st.info(f"**日常行動:** {st.session_state.current_question}")
+        st.markdown("**質問:** なぜあなたはこれをするのですか？ 深掘りして説明してください。")
+
+        # 音声録音
+        st.markdown("### 🎤 音声を録音")
+        st.write("マイクボタンをクリックして録音を開始してください。もう一度クリックすると録音が停止します。")
+
+        audio_bytes = audio_recorder(
+            text="録音",
+            recording_color="#e74c3c",
+            neutral_color="#9b59b6",
+            icon_name="microphone",
+            icon_size="3x"
+        )
+
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/wav")
+
+            # 音声認識と分析ボタン
+            if st.button("📊 音声を分析", use_container_width=True):
+                with st.spinner("音声を認識中..."):
+                    try:
+                        # 音声ファイルを保存
+                        audio_path = save_audio_file(audio_bytes)
+
+                        # 音声をテキストに変換
+                        transcribed_text = st.session_state.ai_client.transcribe_audio(audio_path)
+                        st.session_state.transcribed_text = transcribed_text
+
+                        # 認識結果を表示
+                        st.success("✅ 音声認識完了")
+                        st.markdown("### 📝 認識されたテキスト")
+                        st.write(transcribed_text)
+
+                        # フィードバック生成
+                        with st.spinner("フィードバックを生成中..."):
+                            feedback = st.session_state.ai_client.analyze_self_questioning(
+                                st.session_state.current_question,
+                                transcribed_text
+                            )
+                            st.session_state.feedback = feedback
+
+                            # フィードバック表示
+                            display_feedback(feedback, "self_questioning")
+
+                        # 音声ファイルを削除
+                        os.remove(audio_path)
+
+                    except Exception as e:
+                        st.error(f"エラーが発生しました: {str(e)}")
+
+    else:
+        st.warning("「新しい行動を生成」ボタンを押して、トレーニングを開始してください。")
+
+
+def conclusion_first_training():
+    """結論ファースト訓練（F-102）"""
+    st.header("💡 結論ファースト訓練")
+
+    st.markdown("""
+    ### 訓練の目的
+    質問に対し、まず**結論を強く言い切る**発話練習です。
+    冒頭に「パンチワード」または「エッセンスワード」があることが重要です。
+
+    ### やり方
+    1. 下の「新しい質問を生成」ボタンを押して質問を取得
+    2. 質問を読んで、自分の結論を考える
+    3. 録音ボタンを押して、**結論から先に、強く言い切る**
+    4. AIがあなたの回答を分析してフィードバックします
+
+    ### ポイント
+    - 最初の一言で結論を述べる
+    - 「〜だと思います」ではなく「〜です」と断定する
+    - インパクトのある言葉（パンチワード）で始める
+    - 理由や説明は結論の後に述べる
+    """)
+
+    # 質問生成ボタン
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🎲 新しい質問を生成", use_container_width=True):
+            with st.spinner("質問を生成中..."):
+                try:
+                    st.session_state.current_question = st.session_state.ai_client.generate_question("conclusion_first")
+                    st.session_state.transcribed_text = None
+                    st.session_state.feedback = None
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"質問生成エラー: {str(e)}")
+
+    # 質問表示
+    if st.session_state.current_question:
+        st.info(f"**質問:** {st.session_state.current_question}")
+
+        # 音声録音
+        st.markdown("### 🎤 音声を録音")
+        st.write("マイクボタンをクリックして録音を開始してください。もう一度クリックすると録音が停止します。")
+
+        audio_bytes = audio_recorder(
+            text="録音",
+            recording_color="#e74c3c",
+            neutral_color="#f39c12",
+            icon_name="microphone",
+            icon_size="3x"
+        )
+
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/wav")
+
+            # 音声認識と分析ボタン
+            if st.button("📊 音声を分析", use_container_width=True):
+                with st.spinner("音声を認識中..."):
+                    try:
+                        # 音声ファイルを保存
+                        audio_path = save_audio_file(audio_bytes)
+
+                        # 音声をテキストに変換
+                        transcribed_text = st.session_state.ai_client.transcribe_audio(audio_path)
+                        st.session_state.transcribed_text = transcribed_text
+
+                        # 認識結果を表示
+                        st.success("✅ 音声認識完了")
+                        st.markdown("### 📝 認識されたテキスト")
+                        st.write(transcribed_text)
+
+                        # フィードバック生成
+                        with st.spinner("フィードバックを生成中..."):
+                            feedback = st.session_state.ai_client.analyze_conclusion_first(
+                                st.session_state.current_question,
+                                transcribed_text
+                            )
+                            st.session_state.feedback = feedback
+
+                            # フィードバック表示
+                            display_feedback(feedback, "conclusion_first")
+
+                        # 音声ファイルを削除
+                        os.remove(audio_path)
+
+                    except Exception as e:
+                        st.error(f"エラーが発生しました: {str(e)}")
+
+    else:
+        st.warning("「新しい質問を生成」ボタンを押して、トレーニングを開始してください。")
+
+
 def main():
     """メイン関数"""
     # タイトル
@@ -326,7 +532,7 @@ def main():
 
         training_mode = st.radio(
             "トレーニングを選択",
-            ["オウム返し訓練", "実況トレーニング"],
+            ["オウム返し訓練", "実況トレーニング", "自問自答ダイアログ", "結論ファースト訓練"],
             help="練習したいトレーニングを選んでください"
         )
 
@@ -340,6 +546,8 @@ def main():
         **主な機能:**
         - 🦜 オウム返し訓練
         - 📢 実況トレーニング
+        - 🤔 自問自答ダイアログ
+        - 💡 結論ファースト訓練
         - 🎤 音声認識
         - 📊 AIフィードバック
 
@@ -353,8 +561,12 @@ def main():
     # トレーニングモードに応じた表示
     if training_mode == "オウム返し訓練":
         parrot_training()
-    else:
+    elif training_mode == "実況トレーニング":
         commentary_training()
+    elif training_mode == "自問自答ダイアログ":
+        self_questioning_training()
+    else:
+        conclusion_first_training()
 
 
 if __name__ == "__main__":
