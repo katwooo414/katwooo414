@@ -1,6 +1,160 @@
-<a href="https://github.com/anuraghazra/github-readme-stats">
-  <img align="left" src="https://github-readme-stats.vercel.app/api?username=katwooo414&count_private=true&show_icons=true" />
-</a>
-<a href="https://github.com/anuraghazra/github-readme-stats">
-  <img align="left" src="https://github-readme-stats.vercel.app/api/top-langs/?username=katwooo414" />
-</a>
+# 🗣️ 話力鍛錬所 (Power Speaking Dojo)
+
+タイプA（言葉が出てこないパターン）向けスピーチトレーニングアプリのMVP
+
+## 📋 概要
+
+このアプリは、話し方の課題（特に「言葉が出てこない」タイプ）を改善するためのトレーニングツールです。
+OpenAI APIを使用した音声認識とAIフィードバックにより、効果的なトレーニングを提供します。
+
+### 主な機能
+
+- 🦜 **オウム返し訓練（F-202）**: 質問を復唱してから回答することで、考える時間を稼ぐ練習
+- 📢 **実況トレーニング（F-203）**: 短い言葉で区切りながら話す練習
+- 🎤 **音声認識**: OpenAI Whisper APIによる高精度な音声認識
+- 📊 **AIフィードバック**: GPT-4による詳細な分析とアドバイス
+
+## 🚀 セットアップ手順
+
+### 1. 前提条件
+
+- Python 3.8以上
+- OpenAI APIキー（[OpenAI Platform](https://platform.openai.com/)で取得）
+- マイク（音声録音用）
+
+### 2. リポジトリのクローン
+
+```bash
+git clone <repository-url>
+cd katwooo414
+```
+
+### 3. 仮想環境の作成（推奨）
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# macOS/Linux
+source venv/bin/activate
+```
+
+### 4. 依存関係のインストール
+
+```bash
+pip install -r requirements.txt
+```
+
+### 5. 環境変数の設定
+
+`.env`ファイルを作成し、OpenAI APIキーを設定します：
+
+```bash
+# .env.exampleをコピー
+cp .env.example .env
+
+# .envファイルを編集してAPIキーを設定
+# OPENAI_API_KEY=your-api-key-here
+```
+
+エディタで`.env`ファイルを開き、`your-api-key-here`の部分を実際のAPIキーに置き換えてください。
+
+### 6. アプリケーションの起動
+
+```bash
+streamlit run app.py
+```
+
+ブラウザが自動的に開き、アプリケーションが表示されます（通常は http://localhost:8501）。
+
+## 📖 使い方
+
+### オウム返し訓練
+
+1. サイドバーで「オウム返し訓練」を選択
+2. 「新しい質問を生成」ボタンをクリック
+3. 表示された質問を読む
+4. マイクボタンをクリックして録音開始
+5. **質問を復唱してから、自分の回答を述べる**
+6. もう一度マイクボタンをクリックして録音停止
+7. 「音声を分析」ボタンをクリック
+8. AIからのフィードバックを確認
+
+**ポイント:**
+- 質問を復唱することで、約2秒の考える時間を稼げます
+- 例: 「今日の朝ごはんは何を食べましたか？」→「今日の朝ごはんについて、ですね。パンとコーヒーを食べました。」
+
+### 実況トレーニング
+
+1. サイドバーで「実況トレーニング」を選択
+2. 「新しいトピックを生成」ボタンをクリック
+3. 表示されたトピック（物や場所）を観察
+4. マイクボタンをクリックして録音開始
+5. **短い文で区切りながら実況する**
+6. もう一度マイクボタンをクリックして録音停止
+7. 「音声を分析」ボタンをクリック
+8. AIからのフィードバックを確認
+
+**ポイント:**
+- 一文を短くする（目安：10〜15文字程度）
+- 接続詞で繋げない
+- 句点（。）を意識して区切る
+- 例: 「これはスマートフォンです。色は黒です。画面は大きいです。」
+
+## 🛠️ 技術スタック
+
+- **フロントエンド**: Streamlit
+- **音声録音**: audio-recorder-streamlit
+- **音声認識**: OpenAI Whisper API
+- **AI分析**: OpenAI GPT-4
+- **言語**: Python 3.8+
+
+## 📁 プロジェクト構造
+
+```
+katwooo414/
+├── app.py                    # メインアプリケーション
+├── requirements.txt          # 依存関係
+├── .env.example             # 環境変数のサンプル
+├── .gitignore               # Git除外設定
+├── README.md                # このファイル
+├── src/
+│   ├── __init__.py
+│   └── openai_client.py     # OpenAI APIクライアント
+└── audio_files/             # 録音ファイル（一時保存）
+```
+
+## ⚠️ 注意事項
+
+- OpenAI APIの利用には料金が発生します。使用量にご注意ください。
+- 録音された音声データは、分析後に自動的に削除されます。
+- インターネット接続が必要です（OpenAI APIとの通信のため）。
+- マイクへのアクセス許可が必要です。
+
+## 🔒 プライバシーとセキュリティ
+
+- 音声データはOpenAI APIに送信されますが、分析後すぐにローカルから削除されます。
+- `.env`ファイルはGit管理から除外されています。APIキーを共有しないでください。
+- OpenAIのデータ使用ポリシーについては、[OpenAI Privacy Policy](https://openai.com/privacy/)をご確認ください。
+
+## 🎯 今後の拡張予定
+
+- タイプB（話しすぎるパターン）向け機能
+- 基礎構造トレーニング（PREP法、結論ファースト訓練など）
+- フィラー検出機能
+- トレーニング履歴の記録
+- 進捗グラフの表示
+
+## 📝 ライセンス
+
+This project is licensed under the MIT License.
+
+## 🤝 貢献
+
+バグ報告や機能リクエストは、Issueでお知らせください。
+
+---
+
+**Powered by OpenAI API** 🚀
